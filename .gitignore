@@ -1,0 +1,20 @@
+# OS-generated files
+.DS_Store
+
+
+# IDE settings
+.idea/
+.vscode/
+
+
+# Root-level environment file (if you have one)
+/.env
+
+# Log files
+*.log
+logs/
+
+# NPM/Yarn crash logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log
