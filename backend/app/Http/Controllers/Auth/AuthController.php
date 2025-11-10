@@ -57,44 +57,53 @@ class AuthController extends Controller
      * Handle email verification from the Vue app.
      */
     public function verifyEmail(Request $request)
-    {
-        $validatedData = $request->validate([
-            'email' => 'required|string|email',
-            'code' => 'required|string|min:6|max:6',
-        ]);
+{
+    // 1. Validate the request
+    $validatedData = $request->validate([
+        'email' => 'required|string|email',
+        'code' => 'required|string|min:6|max:6',
+    ]);
 
-        $user = User::where('email', $validatedData['email'])->first();
+    // 2. Find the user
+    $user = User::where('email', $validatedData['email'])->first();
 
-        // 1. Check User
-        if (!$user) {
-            return response()->json(['message' => 'User not found.'], 404);
-        }
-
-        // 2. Check Code Expiry
-        if (now()->isAfter($user->code_expires_at)) {
-            return response()->json(['message' => 'Your verification code has expired. Please log in to resend.'], 400);
-        }
-
-        // 3. Check Code Match
-        if ($user->verification_code !== $validatedData['code']) {
-            return response()->json(['message' => 'Invalid verification code.'], 400);
-        }
-
-        // 4. Verification successful
-        $user->email_verified_at = now();
-        $user->verification_code = null; // Clear the code
-        $user->code_expires_at = null;
-        $user->save();
-
-        // 5. Create and return an auth token (using Sanctum)
-        $token = $user->createToken('api-token')->plainTextToken;
-
-        return response()->json([
-            'message' => 'Email verified successfully! You are now logged in.',
-            'user' => $user,
-            'token' => $token
-        ]);
+    if (!$user) {
+        return response()->json(['message' => 'User not found.'], 404);
     }
+
+    // 3. (NEW FIX) Check for a valid, pending code FIRST
+    // If either of these is null, the user has no code to verify.
+    if (is_null($user->verification_code) || is_null($user->code_expires_at)) {
+        return response()->json([
+            'message' => 'No active verification code. Please log in again to receive one.'
+        ], 400);
+    }
+
+    // 4. Check if the code has expired (This is now safe to run)
+    if (now()->isAfter($user->code_expires_at)) {
+        return response()->json(['message' => 'Your verification code has expired. Please log in again.'], 400);
+    }
+
+    // 5. Check if the code is correct
+    if ($user->verification_code !== $validatedData['code']) {
+        return response()->json(['message' => 'Invalid verification code.'], 400);
+    }
+
+    // 6. If everything is correct, verify the user
+    $user->email_verified_at = now();
+    $user->verification_code = null; // Clear the code
+    $user->code_expires_at = null;
+    $user->save();
+
+    // 7. Create and return an auth token
+    $token = $user->createToken('api-token')->plainTextToken;
+
+    return response()->json([
+        'message' => 'Email verified successfully! You are now logged in.',
+        'user' => $user,
+        'token' => $token
+    ]);
+}
     /**
      * Handle user login.
      * Validates credentials and sends a 2FA code.
