@@ -2,7 +2,6 @@
 
 namespace App\Models;
 
-use MongoDB\Laravel\Eloquent\Model; // <-- Extend the MongoDB Model
 use Laravel\Sanctum\PersonalAccessToken as SanctumPersonalAccessToken;
 
 class PersonalAccessToken extends SanctumPersonalAccessToken // <-- Don't extend Sanctum's model
