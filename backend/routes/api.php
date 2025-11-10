@@ -32,8 +32,21 @@ Route::get('/status', function () {
     ]);
 });
 
+/**
+ * --------------------------------
+ * Unprotected (Public) Routes
+ * --------------------------------
+ *
+ * My Auth Routes
+ */
+// verification route
+Route::post('/verify-email', [AuthController::class, 'verifyEmail']);
 // Used For user registration
 Route::post('/register', [AuthController::class, 'register']);
+// Used for login route
+Route::post('/login', [AuthController::class, 'login']);
+// used to send verification code again
+Route::post('/resend-code', [AuthController::class, 'resendCode']);
 
 
 /**

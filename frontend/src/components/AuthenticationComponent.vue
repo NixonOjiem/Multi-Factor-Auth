@@ -77,6 +77,12 @@
             class="w-full py-3 text-base font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed">
             {{ isLoading ? 'Verifying...' : 'Verify and Sign In' }}
           </button>
+
+          <a href="#" @click.prevent="handleResendCode"
+            class="block text-center mt-4 text-sm text-gray-600 hover:text-blue-600">
+            {{ isLoading ? 'Sending...' : 'Resend Code' }}
+          </a>
+
           <a href="#" @click.prevent="setView('login')"
             class="block text-center mt-6 text-blue-600 font-semibold hover:underline">
             &larr; Back to Sign In
@@ -99,23 +105,25 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-// Manages which view is active: 'login', 'signup', or 'verify'
-const currentView = ref<'login' | 'signup' | 'verify'>('login');
+// import { useRouter } from 'vue-router'; // <-- Uncomment to redirect after login
 
-// Form data
+// --- Configuration ---
+// Make sure this matches your Laravel backend's URL
+const API_URL = 'http://127.0.0.1:8000/api';
+// const router = useRouter(); // <-- Uncomment to redirect
+
+// --- State References ---
+const currentView = ref<'login' | 'signup' | 'verify'>('login');
 const loginForm = ref({ email: '', password: '' });
 const signupForm = ref({ name: '', email: '', password: '' });
 const verificationCode = ref('');
-
-// State helpers
 const isLoading = ref(false);
 const errorMessage = ref('');
 const successMessage = ref('');
-// Store the email to know who to verify
-const emailForVerification = ref('');
+const emailForVerification = ref(''); // Stores email between steps
 
 /**
- * Clears all messages and resets form data.
+ * Clears all messages.
  */
 function clearMessages() {
   errorMessage.value = '';
@@ -128,42 +136,39 @@ function clearMessages() {
 function setView(view: 'login' | 'signup') {
   clearMessages();
   currentView.value = view;
-  // Reset form fields
   loginForm.value = { email: '', password: '' };
   signupForm.value = { name: '', email: '', password: '' };
 }
 
 /**
  * Handles the Sign Up form submission.
- * Your backend should create the user (in an unverified state)
- * and send the verification email.
  */
 async function handleSignup() {
   isLoading.value = true;
   clearMessages();
 
-  // API Call
-  console.log('Signing up with:', signupForm.value);
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-
   try {
-    // const response = await fetch('/api/register', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(signupForm.value),
-    // });
+    // --- API Call ---
+    const response = await fetch(`${API_URL}/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(signupForm.value),
+    });
 
-    // if (!response.ok) {
-    //   const errorData = await response.json();
-    //   throw new Error(errorData.message || 'Failed to sign up.');
-    // }
+    const data = await response.json();
+
+    if (!response.ok) {
+      // Handle server-side validation errors (e.g., email already taken)
+      throw new Error(data.message || 'Failed to sign up.');
+    }
 
     // --- On Success ---
-    // Store the email for the verification step
-    emailForVerification.value = signupForm.value.email;
-    // Show the verification code input
+    emailForVerification.value = data.email; // <-- Get email from backend response
     currentView.value = 'verify';
-    successMessage.value = 'Account created! Please check your email for a verification code.';
+    successMessage.value = data.message; // <-- Use message from backend
 
   } catch (error: any) {
     errorMessage.value = error.message;
@@ -174,35 +179,33 @@ async function handleSignup() {
 
 /**
  * Handles the Sign In form submission.
- * Your backend should validate credentials AND send the 2FA code.
- * It should NOT return a session token yet.
+ * Your backend /api/login should validate and send a 2FA code.
  */
 async function handleLogin() {
   isLoading.value = true;
   clearMessages();
 
-  // TODO: Replace with your actual API call
-  console.log('Logging in with:', loginForm.value);
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-
   try {
-    // const response = await fetch('/api/login', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(loginForm.value),
-    // });
+    // --- API Call ---
+    const response = await fetch(`${API_URL}/login`, { // <-- You need to create this API endpoint
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(loginForm.value),
+    });
 
-    // if (!response.ok) {
-    //   const errorData = await response.json();
-    //   throw new Error(errorData.message || 'Invalid email or password.');
-    // }
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Invalid email or password.');
+    }
 
     // --- On Success ---
-    // Store the email for the verification step
-    emailForVerification.value = loginForm.value.email;
-    // Show the verification code input
+    emailForVerification.value = data.email; // <-- Backend should return the email
     currentView.value = 'verify';
-    successMessage.value = 'Login successful! Please check your email for your 2FA code.';
+    successMessage.value = data.message; // <-- Backend: "Code sent to your email"
 
   } catch (error: any) {
     errorMessage.value = error.message;
@@ -212,49 +215,79 @@ async function handleLogin() {
 }
 
 /**
- * Handles the final verification step.
- * Your backend should validate the code for the given email.
- * If successful, it should mark the user as "verified" (for signup)
- * and return the final session token/cookie (for both).
+ * Handles the final verification step (for both login and signup).
  */
 async function handleVerification() {
   isLoading.value = true;
   clearMessages();
 
-  // TODO: Replace with your actual API call
-  console.log('Verifying code:', verificationCode.value, 'for user:', emailForVerification.value);
-  await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-
   try {
-    // const response = await fetch('/api/verify-code', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({
-    //     email: emailForVerification.value,
-    //     code: verificationCode.value
-    //   }),
-    // });
+    // --- API Call ---
+    const response = await fetch(`${API_URL}/verify-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        email: emailForVerification.value,
+        code: verificationCode.value
+      }),
+    });
 
-    // if (!response.ok) {
-    //   const errorData = await response.json();
-    //   throw new Error(errorData.message || 'Invalid or expired code.');
-    // }
+    const data = await response.json();
 
-    // const userData = await response.json();
-    // e.g., { user: { ... }, token: '...' }
+    if (!response.ok) {
+      throw new Error(data.message || 'Invalid or expired code.');
+    }
 
     // --- On Final Success ---
-    // Save the token, update pinia/vuex store, etc.
-    // localStorage.setItem('token', userData.token);
+    // Save the token and user data from the backend response
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
 
-    // For this demo, just alert and reset
-    alert('Success! You are now fully authenticated.');
+    successMessage.value = data.message; // <-- "Email verified successfully!"
 
-    // Send user to the dashboard or reset the form
-    // router.push('/dashboard');
-    setView('login');
-    verificationCode.value = '';
-    emailForVerification.value = '';
+    // Redirect to dashboard after a short delay
+    setTimeout(() => {
+      // router.push('/dashboard'); // <-- Uncomment to redirect
+      alert('Login successful! Redirecting...');
+    }, 1500);
+
+  } catch (error: any) {
+    errorMessage.value = error.message;
+  } finally {
+    isLoading.value = false;
+  }
+}
+
+/**
+ * Handles resending the verification code.
+ */
+async function handleResendCode() {
+  if (isLoading.value) return; // Prevent multiple clicks
+
+  isLoading.value = true;
+  clearMessages();
+
+  try {
+    // --- API Call ---
+    const response = await fetch(`${API_URL}/resend-code`, { // <-- You need to create this API endpoint
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ email: emailForVerification.value }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to resend code.');
+    }
+
+    successMessage.value = data.message; // <-- "New code sent to your email"
 
   } catch (error: any) {
     errorMessage.value = error.message;
