@@ -1,7 +1,9 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -29,6 +31,9 @@ Route::get('/status', function () {
         'message' => 'API is up and running!'
     ]);
 });
+
+// Used For user registration
+Route::post('/register', [AuthController::class, 'register']);
 
 
 /**

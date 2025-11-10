@@ -142,7 +142,7 @@ async function handleSignup() {
   isLoading.value = true;
   clearMessages();
 
-  // TODO: Replace with your actual API call
+  // API Call
   console.log('Signing up with:', signupForm.value);
   await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
 

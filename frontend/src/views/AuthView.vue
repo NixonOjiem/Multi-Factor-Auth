@@ -5,7 +5,7 @@
 </template>
 
 <script setup lang="ts">
-import AuthenticationComponent from '@/components/AuthenticationComponent.vue';
+import AuthenticationComponent from '../components/AuthenticationComponent.vue';
 </script>
 <style lang="">
 
